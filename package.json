@@ -1,13 +1,16 @@
 {
-  "name": "actor-game-server",
+  "name": "college-support-bot",
   "version": "1.0.0",
-  "main": "server.js",
+  "description": "Telegram-бот техподдержки колледжа: приём и обработка заявок на обслуживание техники",
+  "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js"
+    "start": "node index.js",
+    "dev": "node --watch index.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "node-fetch": "^2.6.7"
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "node-telegram-bot-api": "^0.66.0"
   }
 }
