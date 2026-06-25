@@ -12,14 +12,13 @@ GRAY  = RGBColor(0xAA, 0xAA, 0xAA)
 LGRAY = RGBColor(0xCC, 0xCC, 0xCC)
 DGRAY = RGBColor(0x66, 0x66, 0x66)
 
+
 # ──────────────────────────────────────────────────────────────
-# Низкоуровневые хелперы
+# Хелперы
 # ──────────────────────────────────────────────────────────────
 
-def _tcBorders(cell, top=None, bottom=None, left=None, right=None):
-    tc   = cell._tc
-    tcPr = tc.get_or_add_tcPr()
-    # удалим старые border-элементы
+def _tc_borders(cell, top=None, bottom=None, left=None, right=None):
+    tcPr = cell._tc.get_or_add_tcPr()
     for old in tcPr.findall(qn('w:tcBorders')):
         tcPr.remove(old)
     bEl = OxmlElement('w:tcBorders')
@@ -27,7 +26,7 @@ def _tcBorders(cell, top=None, bottom=None, left=None, right=None):
                       ('left', left), ('right', right)]:
         if cfg:
             el = OxmlElement(f'w:{side}')
-            el.set(qn('w:val'),   cfg.get('val',   'single'))
+            el.set(qn('w:val'),   cfg.get('val', 'single'))
             el.set(qn('w:sz'),    str(cfg.get('sz', 4)))
             el.set(qn('w:space'), '0')
             el.set(qn('w:color'), cfg.get('color', '000000'))
@@ -36,250 +35,226 @@ def _tcBorders(cell, top=None, bottom=None, left=None, right=None):
 
 
 def no_border(cell):
-    _tcBorders(cell,
-               top   ={'val': 'none'},
-               bottom={'val': 'none'},
-               left  ={'val': 'none'},
-               right ={'val': 'none'})
+    _tc_borders(cell,
+                top={'val': 'none'}, bottom={'val': 'none'},
+                left={'val': 'none'}, right={'val': 'none'})
 
 
-def underline_border(cell, color='555555', sz=4):
-    _tcBorders(cell,
-               top   ={'val': 'none'},
-               bottom={'val': 'single', 'sz': sz, 'color': color},
-               left  ={'val': 'none'},
-               right ={'val': 'none'})
+def underline(cell, color='444444', sz=6):
+    _tc_borders(cell,
+                top={'val': 'none'}, bottom={'val': 'single', 'sz': sz, 'color': color},
+                left={'val': 'none'}, right={'val': 'none'})
 
 
-def box_border(cell, color='0D2D5E', sz=8):
-    _tcBorders(cell,
-               top   ={'val': 'single', 'sz': sz, 'color': color},
-               bottom={'val': 'single', 'sz': sz, 'color': color},
-               left  ={'val': 'single', 'sz': sz, 'color': color},
-               right ={'val': 'single', 'sz': sz, 'color': color})
+def box(cell, color='0D2D5E', sz=10):
+    _tc_borders(cell,
+                top={'val': 'single', 'sz': sz, 'color': color},
+                bottom={'val': 'single', 'sz': sz, 'color': color},
+                left={'val': 'single', 'sz': sz, 'color': color},
+                right={'val': 'single', 'sz': sz, 'color': color})
 
 
-def set_row_height(row, height_mm, rule='exact'):
+def set_row_h(row, mm, rule='exact'):
     trPr = row._tr.get_or_add_trPr()
     for old in trPr.findall(qn('w:trHeight')):
         trPr.remove(old)
     h = OxmlElement('w:trHeight')
-    h.set(qn('w:val'), str(int(Mm(height_mm).emu / 914)))
+    h.set(qn('w:val'), str(int(Mm(mm).emu / 914)))
     h.set(qn('w:hRule'), rule)
     trPr.append(h)
 
 
-def set_cell_bg(cell, hex6):
-    tcPr = cell._tc.get_or_add_tcPr()
-    shd  = OxmlElement('w:shd')
-    shd.set(qn('w:val'),   'clear')
-    shd.set(qn('w:color'), 'auto')
-    shd.set(qn('w:fill'),  hex6)
-    tcPr.append(shd)
-
-
-def add_para_border_bottom(para, color='0D2D5E', sz=4):
-    pPr  = para._p.get_or_add_pPr()
+def p_border_bottom(para, color='0D2D5E', sz=4):
+    pPr = para._p.get_or_add_pPr()
     pBdr = OxmlElement('w:pBdr')
-    bot  = OxmlElement('w:bottom')
-    bot.set(qn('w:val'),   'single')
-    bot.set(qn('w:sz'),    str(sz))
+    bot = OxmlElement('w:bottom')
+    bot.set(qn('w:val'), 'single')
+    bot.set(qn('w:sz'), str(sz))
     bot.set(qn('w:space'), '1')
     bot.set(qn('w:color'), color)
     pBdr.append(bot)
     pPr.append(pBdr)
 
 
-def labeled_run(cell, text, size=6, color=NAVY, bold=False,
-                align=WD_ALIGN_PARAGRAPH.LEFT,
-                space_before=0, space_after=0):
+def txt(cell, text='', size=7, bold=False, color=NAVY,
+        align=WD_ALIGN_PARAGRAPH.LEFT, sb=0, sa=0):
     p = cell.add_paragraph()
     p.alignment = align
-    p.paragraph_format.space_before = Pt(space_before)
-    p.paragraph_format.space_after  = Pt(space_after)
+    p.paragraph_format.space_before = Pt(sb)
+    p.paragraph_format.space_after  = Pt(sa)
     r = p.add_run(text)
-    r.font.size     = Pt(size)
+    r.font.size      = Pt(size)
+    r.font.bold      = bold
     r.font.color.rgb = color
-    r.font.bold     = bold
     return p
 
 
+def field_row(parent_cell, label, label_w_cm, value_w_cm, sb=2, sa=1):
+    """Строка: метка | подчёркнутое поле."""
+    t = parent_cell.add_table(rows=1, cols=2)
+    lc = t.rows[0].cells[0]
+    vc = t.rows[0].cells[1]
+    lc.width = Cm(label_w_cm)
+    vc.width = Cm(value_w_cm)
+    no_border(lc)
+    underline(vc)
+    lc.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
+    vc.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
+    lp = lc.add_paragraph(label)
+    lp.paragraph_format.space_before = Pt(sb)
+    lp.paragraph_format.space_after  = Pt(sa)
+    lp.runs[0].font.size      = Pt(6)
+    lp.runs[0].font.color.rgb = NAVY
+    vp = vc.add_paragraph('')
+    vp.paragraph_format.space_before = Pt(sb)
+    vp.paragraph_format.space_after  = Pt(sa)
+
+
 # ──────────────────────────────────────────────────────────────
-# Левая страница паспорта (фото + ФИО + адрес + подписи)
+# Левая страница: фото + ФИО + адрес + подписи
 # ──────────────────────────────────────────────────────────────
 
 def build_left(cell):
     cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+    W = 9.6  # рабочая ширина страницы в cm
 
     # Заголовок
-    hp = labeled_run(cell, 'ЧАЙКАГРАД  ·  ЛИЧНЫЕ СВЕДЕНИЯ',
-                     size=6, bold=True, color=NAVY,
-                     align=WD_ALIGN_PARAGRAPH.CENTER,
-                     space_before=3, space_after=2)
-    add_para_border_bottom(hp)
+    h = txt(cell, 'ЧАЙКАГРАД  ·  ЛИЧНЫЕ СВЕДЕНИЯ',
+            size=6.5, bold=True, color=NAVY,
+            align=WD_ALIGN_PARAGRAPH.CENTER, sb=3, sa=3)
+    p_border_bottom(h)
 
-    # ── Блок: фото слева + ФИО справа ─────────────────────────
-    t = cell.add_table(rows=1, cols=2)
-    t.alignment = WD_TABLE_ALIGNMENT.LEFT
-    photo_c = t.rows[0].cells[0]
-    fio_c   = t.rows[0].cells[1]
-    photo_c.width = Cm(3.2)
-    fio_c.width   = Cm(6.3)
-    no_border(photo_c)
-    no_border(fio_c)
+    # ── Главный блок: квадрат фото слева + поля справа ────────
+    main = cell.add_table(rows=1, cols=2)
+    main.alignment = WD_TABLE_ALIGNMENT.LEFT
+    photo_cell = main.rows[0].cells[0]
+    fio_cell   = main.rows[0].cells[1]
 
-    # Рамка фото
-    pt = photo_c.add_table(rows=1, cols=1)
+    PHOTO_W = 3.8
+    FIO_W   = W - PHOTO_W - 0.3
+    photo_cell.width = Cm(PHOTO_W)
+    fio_cell.width   = Cm(FIO_W)
+    no_border(photo_cell)
+    no_border(fio_cell)
+    photo_cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+    fio_cell.vertical_alignment   = WD_ALIGN_VERTICAL.TOP
+
+    # Квадрат фото — вложенная таблица 1×1
+    pt = photo_cell.add_table(rows=1, cols=1)
     ph = pt.rows[0].cells[0]
-    ph.width = Cm(2.8)
-    box_border(ph, sz=6)
-    set_row_height(pt.rows[0], 36)
+    ph.width = Cm(PHOTO_W - 0.2)
+    box(ph, sz=12)
+    set_row_h(pt.rows[0], 44)   # ~44 мм — ощутимый квадрат
+    ph.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     fp = ph.add_paragraph('ФОТО')
     fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    fp.paragraph_format.space_before = Pt(22)
+    fp.paragraph_format.space_before = Pt(0)
     fp.paragraph_format.space_after  = Pt(0)
-    fp.runs[0].font.size      = Pt(6.5)
+    fp.runs[0].font.size      = Pt(8)
     fp.runs[0].font.color.rgb = LGRAY
+    fp.runs[0].font.bold      = True
 
-    # Поля ФИО
+    # Поля ФИО справа от фото
     for label in ('Фамилия', 'Имя', 'Отчество', 'Дата рождения'):
-        ft = fio_c.add_table(rows=1, cols=2)
-        lc = ft.rows[0].cells[0]
-        vc = ft.rows[0].cells[1]
-        lc.width = Cm(2.5)
-        vc.width = Cm(3.7)
-        no_border(lc)
-        underline_border(vc)
+        t = fio_cell.add_table(rows=1, cols=2)
+        lc = t.rows[0].cells[0]
+        vc = t.rows[0].cells[1]
+        lc.width = Cm(2.8)
+        vc.width = Cm(FIO_W - 2.9)
+        no_border(lc); underline(vc)
+        lc.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
+        vc.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
         lp = lc.add_paragraph(label)
-        lp.paragraph_format.space_before = Pt(1)
+        lp.paragraph_format.space_before = Pt(3)
         lp.paragraph_format.space_after  = Pt(0)
         lp.runs[0].font.size      = Pt(5.5)
         lp.runs[0].font.color.rgb = NAVY
         vp = vc.add_paragraph('')
-        vp.paragraph_format.space_before = Pt(1)
-        vp.paragraph_format.space_after  = Pt(2)
+        vp.paragraph_format.space_before = Pt(3)
+        vp.paragraph_format.space_after  = Pt(1)
 
     # ── Место жительства ──────────────────────────────────────
-    ap = labeled_run(cell, 'МЕСТО ЖИТЕЛЬСТВА',
-                     size=5.5, bold=True, color=NAVY, space_before=4, space_after=1)
+    al = txt(cell, 'МЕСТО ЖИТЕЛЬСТВА',
+             size=5.5, bold=True, color=NAVY, sb=5, sa=1)
+
     for _ in range(2):
         at = cell.add_table(rows=1, cols=1)
         ac = at.rows[0].cells[0]
-        ac.width = Cm(9.6)
-        no_border(ac)
-        underline_border(ac)
-        p = ac.add_paragraph('')
-        p.paragraph_format.space_before = Pt(1)
-        p.paragraph_format.space_after  = Pt(2)
+        ac.width = Cm(W)
+        no_border(ac); underline(ac)
+        ap = ac.add_paragraph('')
+        ap.paragraph_format.space_before = Pt(1)
+        ap.paragraph_format.space_after  = Pt(3)
 
     # ── Отряд ────────────────────────────────────────────────
-    sq = cell.add_table(rows=1, cols=2)
-    slc = sq.rows[0].cells[0]
-    svc = sq.rows[0].cells[1]
-    slc.width = Cm(1.8)
-    svc.width = Cm(7.7)
-    no_border(slc)
-    underline_border(svc)
-    sp = slc.add_paragraph('Отряд')
-    sp.paragraph_format.space_before = Pt(4)
-    sp.paragraph_format.space_after  = Pt(0)
-    sp.runs[0].font.size      = Pt(5.5)
-    sp.runs[0].font.color.rgb = NAVY
-    svp = svc.add_paragraph('')
-    svp.paragraph_format.space_before = Pt(4)
-    svp.paragraph_format.space_after  = Pt(1)
+    field_row(cell, 'Отряд', 1.6, W - 1.7, sb=4, sa=1)
 
-    # ── Подписи ───────────────────────────────────────────────
-    divp = cell.add_paragraph()
-    divp.paragraph_format.space_before = Pt(6)
-    divp.paragraph_format.space_after  = Pt(1)
-    pPr  = divp._p.get_or_add_pPr()
+    # ── Разделитель подписей ──────────────────────────────────
+    div = cell.add_paragraph()
+    div.paragraph_format.space_before = Pt(7)
+    div.paragraph_format.space_after  = Pt(1)
+    pPr  = div._p.get_or_add_pPr()
     pBdr = OxmlElement('w:pBdr')
     top  = OxmlElement('w:top')
-    top.set(qn('w:val'), 'single'); top.set(qn('w:sz'), '2')
-    top.set(qn('w:space'), '1');    top.set(qn('w:color'), 'CCCCCC')
+    top.set(qn('w:val'), 'single')
+    top.set(qn('w:sz'), '2')
+    top.set(qn('w:space'), '1')
+    top.set(qn('w:color'), 'AAAAAA')
     pBdr.append(top); pPr.append(pBdr)
 
+    # ── Подписи (2 колонки) ───────────────────────────────────
     sig = cell.add_table(rows=3, cols=2)
     for ci, label in enumerate(['Подпись гражданина', 'Подпись директора']):
         lc2 = sig.rows[0].cells[ci]
         vc2 = sig.rows[1].cells[ci]
         nc  = sig.rows[2].cells[ci]
-        no_border(lc2); underline_border(vc2); no_border(nc)
+        no_border(lc2); underline(vc2); no_border(nc)
+
         lp2 = lc2.add_paragraph(label)
         lp2.paragraph_format.space_before = Pt(0)
         lp2.paragraph_format.space_after  = Pt(0)
         lp2.runs[0].font.size      = Pt(5.5)
         lp2.runs[0].font.color.rgb = NAVY
-        set_row_height(sig.rows[1], 10)
+
+        set_row_h(sig.rows[1], 11)
         vp2 = vc2.add_paragraph('')
         vp2.paragraph_format.space_before = Pt(0)
         vp2.paragraph_format.space_after  = Pt(0)
+
         np_ = nc.add_paragraph('(подпись)')
         np_.alignment = WD_ALIGN_PARAGRAPH.CENTER
         np_.paragraph_format.space_before = Pt(0)
-        np_.paragraph_format.space_after  = Pt(0)
+        np_.paragraph_format.space_after  = Pt(2)
         np_.runs[0].font.size      = Pt(5)
         np_.runs[0].font.color.rgb = LGRAY
 
 
 # ──────────────────────────────────────────────────────────────
-# Правая страница паспорта (достижения)
+# Правая страница: просто "ДОСТИЖЕНИЯ" + пустое поле
 # ──────────────────────────────────────────────────────────────
 
 def build_right(cell):
     cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
 
-    hp = labeled_run(cell, 'ЧАЙКАГРАД  ·  ДОСТИЖЕНИЯ',
-                     size=6, bold=True, color=NAVY,
-                     align=WD_ALIGN_PARAGRAPH.CENTER,
-                     space_before=3, space_after=2)
-    add_para_border_bottom(hp)
+    h = txt(cell, 'ЧАЙКАГРАД  ·  ДОСТИЖЕНИЯ',
+            size=6.5, bold=True, color=NAVY,
+            align=WD_ALIGN_PARAGRAPH.CENTER, sb=3, sa=3)
+    p_border_bottom(h)
 
-    for i in range(1, 7):
-        rt = cell.add_table(rows=1, cols=3)
-        nc  = rt.rows[0].cells[0]   # номер
-        lc  = rt.rows[0].cells[1]   # строки
-        stc = rt.rows[0].cells[2]   # печать
-
-        nc.width  = Cm(0.55)
-        lc.width  = Cm(8.0)
-        stc.width = Cm(1.2)
-        no_border(nc); no_border(lc); no_border(stc)
-
-        np_ = nc.add_paragraph(f'{i}.')
-        np_.paragraph_format.space_before = Pt(3)
-        np_.paragraph_format.space_after  = Pt(0)
-        np_.runs[0].font.size      = Pt(7)
-        np_.runs[0].font.color.rgb = NAVY
-        np_.runs[0].font.bold      = True
-
-        # 2 строки для записи достижения
-        inner = lc.add_table(rows=2, cols=1)
-        for r in inner.rows:
-            rc = r.cells[0]
-            no_border(rc)
-            underline_border(rc, color='BBBBBB', sz=2)
-            rp = rc.add_paragraph('')
-            rp.paragraph_format.space_before = Pt(1)
-            rp.paragraph_format.space_after  = Pt(2)
-
-        # Кружок-печать
-        sp = stc.add_paragraph('◯')
-        sp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        sp.paragraph_format.space_before = Pt(2)
-        sp.paragraph_format.space_after  = Pt(0)
-        sp.runs[0].font.size      = Pt(18)
-        sp.runs[0].font.color.rgb = LGRAY
-
-        # Зазор
-        gap = cell.add_paragraph()
-        gap.paragraph_format.space_before = Pt(0)
-        gap.paragraph_format.space_after  = Pt(1)
+    # Пустое поле — вложенная таблица с рамкой
+    empty = cell.add_table(rows=1, cols=1)
+    ec = empty.rows[0].cells[0]
+    ec.width = Cm(9.4)
+    box(ec, color='CCCCCC', sz=4)
+    set_row_h(empty.rows[0], 108, rule='atLeast')
+    ec.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+    ep = ec.add_paragraph('')
+    ep.paragraph_format.space_before = Pt(0)
+    ep.paragraph_format.space_after  = Pt(0)
 
 
 # ──────────────────────────────────────────────────────────────
-# Один паспорт (левая + правая страница)
+# Один паспорт в ячейку контейнера
 # ──────────────────────────────────────────────────────────────
 
 def build_passport(container_cell):
@@ -292,11 +267,8 @@ def build_passport(container_cell):
     rc = spread.rows[0].cells[1]
     lc.width = Cm(9.8)
     rc.width = Cm(9.8)
-    box_border(lc, sz=6)
-    box_border(rc, sz=6)
-
-    lc.width = Cm(9.8)
-    rc.width = Cm(9.8)
+    box(lc, sz=6)
+    box(rc, sz=6)
 
     build_left(lc)
     build_right(rc)
@@ -322,31 +294,28 @@ def make_doc():
     style.paragraph_format.space_before = Pt(0)
     style.paragraph_format.space_after  = Pt(0)
 
-    # Контейнер: строка 0 — паспорт 1, строка 1 — разделитель, строка 2 — паспорт 2
+    # 3 строки: паспорт 1 | разделитель | паспорт 2
     tbl = doc.add_table(rows=3, cols=1)
     tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
 
     for row in tbl.rows:
-        c = row.cells[0]
-        c.width = Mm(196)
-        no_border(c)
+        no_border(row.cells[0])
+        row.cells[0].width = Mm(196)
 
-    # Паспорт 1
     build_passport(tbl.rows[0].cells[0])
 
-    # Разделитель
+    # Линия разреза
     sep_c = tbl.rows[1].cells[0]
     no_border(sep_c)
-    sep_p = sep_c.add_paragraph(
-        '- - - - - - - - - - - - - - - - - - - - ✂ разрезать ✂ - - - - - - - - - - - - - - - - - - - -'
+    sp = sep_c.add_paragraph(
+        '- - - - - - - - - - - - - - - - - - - - - ✂  разрезать  ✂ - - - - - - - - - - - - - - - - - - - -'
     )
-    sep_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    sep_p.paragraph_format.space_before = Pt(3)
-    sep_p.paragraph_format.space_after  = Pt(3)
-    sep_p.runs[0].font.size      = Pt(6)
-    sep_p.runs[0].font.color.rgb = DGRAY
+    sp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    sp.paragraph_format.space_before = Pt(4)
+    sp.paragraph_format.space_after  = Pt(4)
+    sp.runs[0].font.size      = Pt(6)
+    sp.runs[0].font.color.rgb = DGRAY
 
-    # Паспорт 2
     build_passport(tbl.rows[2].cells[0])
 
     out = '/home/user/kti-support-bot/passport-chaikagrad.docx'
