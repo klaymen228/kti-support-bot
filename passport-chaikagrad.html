@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Паспорт гражданина Чайкаграда</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      background: #e0e0e0;
+    }
+
+    .print-note {
+      text-align: center;
+      padding: 12px;
+      background: #fff3cd;
+      border-bottom: 2px solid #ffc107;
+      font-size: 13px;
+      color: #555;
+    }
+
+    @media print {
+      .print-note { display: none; }
+      body { background: white; }
+    }
+
+    /* ===== SPREAD = один лист A4 горизонтальный ===== */
+    .spread {
+      width: 297mm;
+      height: 210mm;
+      display: flex;
+      background: white;
+      margin: 12px auto;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+      page-break-after: always;
+      break-after: page;
+    }
+
+    /* Линия сгиба по центру */
+    .spread::after {
+      content: '';
+      position: absolute;
+      left: 148.5mm;
+      top: 0;
+      height: 210mm;
+      border-left: 1px dashed #aaa;
+      pointer-events: none;
+    }
+
+    .spread { position: relative; }
+
+    /* ===== СТРАНИЦА — половина A4 ===== */
+    .page {
+      width: 148.5mm;
+      height: 210mm;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    /* ============================================================
+       ОБЛОЖКА (передняя и задняя)
+    ============================================================ */
+    .cover-front,
+    .cover-back {
+      background: #0d2d5e;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6mm;
+      padding: 10mm;
+    }
+
+    .cover-front .top-label,
+    .cover-back .top-label {
+      font-size: 8pt;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      opacity: 0.7;
+      margin-bottom: 2mm;
+    }
+
+    .cover-front .passport-word {
+      font-size: 22pt;
+      letter-spacing: 6px;
+      font-weight: normal;
+      text-transform: uppercase;
+      border-top: 1px solid rgba(255,255,255,0.4);
+      border-bottom: 1px solid rgba(255,255,255,0.4);
+      padding: 3mm 6mm;
+    }
+
+    .cover-front .city-name {
+      font-size: 11pt;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+
+    .cover-front .subtitle {
+      font-size: 8.5pt;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: 0.65;
+      text-align: center;
+    }
+
+    /* Силуэт чайки — SVG */
+    .seagull-logo {
+      width: 42mm;
+      height: 28mm;
+    }
+
+    /* ============================================================
+       ЛЕВАЯ ВНУТРЕННЯЯ СТРАНИЦА (фото + ФИО)
+    ============================================================ */
+    .info-page {
+      background: #fefefe;
+      padding: 8mm 9mm 7mm 9mm;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .info-page .page-header {
+      text-align: center;
+      font-size: 7pt;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #0d2d5e;
+      border-bottom: 1.5px solid #0d2d5e;
+      padding-bottom: 2mm;
+      margin-bottom: 4mm;
+    }
+
+    .info-top {
+      display: flex;
+      gap: 5mm;
+      margin-bottom: 4mm;
+    }
+
+    /* Место для фото */
+    .photo-box {
+      width: 33mm;
+      height: 42mm;
+      border: 1.5px solid #0d2d5e;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #aaa;
+      font-size: 7pt;
+      text-align: center;
+      line-height: 1.4;
+      background: #f5f8ff;
+    }
+
+    .info-fields {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding-top: 1mm;
+    }
+
+    .field-group {
+      margin-bottom: 3mm;
+    }
+
+    .field-label {
+      font-size: 6.5pt;
+      color: #0d2d5e;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 0.5mm;
+    }
+
+    .field-line {
+      border-bottom: 1px solid #333;
+      width: 100%;
+      height: 4.5mm;
+    }
+
+    .field-line-short {
+      border-bottom: 1px solid #333;
+      width: 60%;
+      height: 4.5mm;
+    }
+
+    /* Место жительства */
+    .address-block {
+      margin-bottom: 4mm;
+    }
+
+    .address-block .field-label {
+      font-size: 6.5pt;
+      color: #0d2d5e;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 1mm;
+    }
+
+    .address-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5mm;
+    }
+
+    .address-line {
+      border-bottom: 1px solid #333;
+      width: 100%;
+      height: 4.5mm;
+    }
+
+    /* Подписи */
+    .signatures {
+      display: flex;
+      gap: 5mm;
+      margin-top: auto;
+      padding-top: 3mm;
+      border-top: 0.5px solid #ccc;
+    }
+
+    .sig-block {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1mm;
+    }
+
+    .sig-label {
+      font-size: 5.5pt;
+      color: #0d2d5e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sig-line {
+      border-bottom: 1px solid #333;
+      width: 100%;
+      height: 7mm;
+    }
+
+    .sig-name-line {
+      border-bottom: 0.5px solid #999;
+      width: 100%;
+      height: 3.5mm;
+      margin-top: 0.5mm;
+    }
+
+    .sig-name-label {
+      font-size: 5pt;
+      color: #999;
+      text-align: center;
+    }
+
+    /* ============================================================
+       ПРАВАЯ ВНУТРЕННЯЯ СТРАНИЦА (достижения)
+    ============================================================ */
+    .achievements-page {
+      background: #fefefe;
+      border-left: 0.5px solid #ddd;
+      padding: 8mm 9mm 7mm 9mm;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .achievements-page .page-header {
+      text-align: center;
+      font-size: 7pt;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #0d2d5e;
+      border-bottom: 1.5px solid #0d2d5e;
+      padding-bottom: 2mm;
+      margin-bottom: 5mm;
+    }
+
+    .achievement-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 2.5mm;
+      margin-bottom: 4mm;
+    }
+
+    .achievement-num {
+      font-size: 7pt;
+      color: #0d2d5e;
+      font-weight: bold;
+      width: 5mm;
+      flex-shrink: 0;
+      padding-top: 0.5mm;
+    }
+
+    .achievement-lines {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1mm;
+    }
+
+    .achievement-line {
+      border-bottom: 0.5px solid #bbb;
+      height: 4.5mm;
+      width: 100%;
+    }
+
+    .achievement-stamp {
+      width: 15mm;
+      height: 15mm;
+      border: 1px dashed #ccc;
+      flex-shrink: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .achievement-stamp-text {
+      font-size: 4.5pt;
+      color: #ccc;
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    /* ============================================================
+       ЗАДНЯЯ ОБЛОЖКА (cover-back)
+    ============================================================ */
+    .cover-back .small-seagull {
+      width: 20mm;
+      height: 14mm;
+      opacity: 0.35;
+    }
+
+    .cover-back .back-text {
+      font-size: 6.5pt;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.5;
+      text-align: center;
+      margin-top: 8mm;
+    }
+
+    .cover-back .serial-block {
+      margin-top: 10mm;
+      font-size: 6pt;
+      opacity: 0.4;
+      letter-spacing: 1px;
+      text-align: center;
+    }
+
+    .serial-line {
+      border-bottom: 0.5px solid rgba(255,255,255,0.3);
+      width: 30mm;
+      height: 4mm;
+      margin: 2mm auto 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="print-note">
+  Инструкция по печати: Распечатайте оба листа. Вложите лист 2 внутрь листа 1 и согните по центру — получится книжечка-паспорт.
+</div>
+
+<!-- ================================================================
+     ЛИСТ 1: Задняя обложка (слева) | Передняя обложка (справа)
+     Печатается с ОБРАТНОЙ стороны второго листа (или распечатать отдельно)
+     ================================================================ -->
+<div class="spread">
+
+  <!-- Задняя обложка -->
+  <div class="page cover-back">
+    <svg class="small-seagull" viewBox="0 0 200 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 90 Q40 60 80 55 Q100 53 115 60 Q130 55 160 35 Q180 20 195 10 Q185 30 170 50 Q155 65 135 68 Q120 70 115 75 L90 95 Q70 105 50 108 Q30 110 10 90Z" stroke="white" stroke-width="2" fill="none"/>
+      <path d="M80 55 Q95 45 115 60" stroke="white" stroke-width="1.5" fill="none"/>
+      <path d="M115 75 Q120 88 108 95 Q95 100 85 95" stroke="white" stroke-width="1.5" fill="none"/>
+      <circle cx="125" cy="62" r="2" fill="white"/>
+    </svg>
+    <p class="back-text">Чайкаград</p>
+    <div class="serial-block">
+      № ____________
+      <div class="serial-line"></div>
+    </div>
+  </div>
+
+  <!-- Передняя обложка -->
+  <div class="page cover-front">
+    <p class="top-label">Чайкаград</p>
+
+    <!-- Логотип чайки -->
+    <svg class="seagull-logo" viewBox="0 0 200 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 90 Q40 60 80 55 Q100 53 115 60 Q130 55 160 35 Q180 20 195 10 Q185 30 170 50 Q155 65 135 68 Q120 70 115 75 L90 95 Q70 105 50 108 Q30 110 10 90Z" stroke="white" stroke-width="2.5" fill="none"/>
+      <path d="M80 55 Q95 45 115 60" stroke="white" stroke-width="2" fill="none"/>
+      <path d="M115 75 Q120 88 108 95 Q95 100 85 95" stroke="white" stroke-width="2" fill="none"/>
+      <circle cx="125" cy="62" r="2.5" fill="white"/>
+    </svg>
+
+    <p class="passport-word">Паспорт</p>
+    <p class="city-name">Чайкаград</p>
+    <p class="subtitle">Гражданина&nbsp;Чайкаграда</p>
+  </div>
+
+</div>
+
+<!-- ================================================================
+     ЛИСТ 2: Страница с фото/ФИО (слева) | Достижения (справа)
+     Печатается с ЛИЦЕВОЙ стороны второго листа
+     ================================================================ -->
+<div class="spread">
+
+  <!-- Левая внутренняя страница — личные данные -->
+  <div class="page info-page">
+
+    <div class="page-header">Личные сведения</div>
+
+    <div class="info-top">
+      <!-- Место для фото -->
+      <div class="photo-box">
+        Место<br>для<br>фото
+      </div>
+
+      <!-- Поля ФИО -->
+      <div class="info-fields">
+        <div class="field-group">
+          <div class="field-label">Фамилия</div>
+          <div class="field-line"></div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Имя</div>
+          <div class="field-line"></div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Отчество</div>
+          <div class="field-line"></div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Дата рождения</div>
+          <div class="field-line-short"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Место жительства -->
+    <div class="address-block">
+      <div class="field-label">Место жительства</div>
+      <div class="address-lines">
+        <div class="address-line"></div>
+        <div class="address-line"></div>
+      </div>
+    </div>
+
+    <!-- Отряд / команда -->
+    <div class="field-group" style="margin-bottom: 4mm;">
+      <div class="field-label">Отряд</div>
+      <div class="field-line"></div>
+    </div>
+
+    <!-- Подписи -->
+    <div class="signatures">
+      <div class="sig-block">
+        <div class="sig-label">Подпись гражданина</div>
+        <div class="sig-line"></div>
+        <div class="sig-name-label">подпись</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-label">Подпись директора</div>
+        <div class="sig-line"></div>
+        <div class="sig-name-label">подпись</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Правая внутренняя страница — достижения -->
+  <div class="page achievements-page">
+
+    <div class="page-header">Достижения</div>
+
+    <!-- 6 строк для достижений -->
+    <div class="achievement-item">
+      <div class="achievement-num">1.</div>
+      <div class="achievement-lines">
+        <div class="achievement-line"></div>
+        <div class="achievement-line"></div>
+      </div>
+      <div class="achievement-stamp"><div class="achievement-stamp-text">печать</div></div>
+    </div>
+
+    <div class="achievement-item">
+      <div class="achievement-num">2.</div>
+      <div class="achievement-lines">
+        <div class="achievement-line"></div>
+        <div class="achievement-line"></div>
+      </div>
+      <div class="achievement-stamp"><div class="achievement-stamp-text">печать</div></div>
+    </div>
+
+    <div class="achievement-item">
+      <div class="achievement-num">3.</div>
+      <div class="achievement-lines">
+        <div class="achievement-line"></div>
+        <div class="achievement-line"></div>
+      </div>
+      <div class="achievement-stamp"><div class="achievement-stamp-text">печать</div></div>
+    </div>
+
+    <div class="achievement-item">
+      <div class="achievement-num">4.</div>
+      <div class="achievement-lines">
+        <div class="achievement-line"></div>
+        <div class="achievement-line"></div>
+      </div>
+      <div class="achievement-stamp"><div class="achievement-stamp-text">печать</div></div>
+    </div>
+
+    <div class="achievement-item">
+      <div class="achievement-num">5.</div>
+      <div class="achievement-lines">
+        <div class="achievement-line"></div>
+        <div class="achievement-line"></div>
+      </div>
+      <div class="achievement-stamp"><div class="achievement-stamp-text">печать</div></div>
+    </div>
+
+    <div class="achievement-item">
+      <div class="achievement-num">6.</div>
+      <div class="achievement-lines">
+        <div class="achievement-line"></div>
+        <div class="achievement-line"></div>
+      </div>
+      <div class="achievement-stamp"><div class="achievement-stamp-text">печать</div></div>
+    </div>
+
+  </div>
+
+</div>
+
+</body>
+</html>
